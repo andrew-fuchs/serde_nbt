@@ -3,8 +3,9 @@
 
 mod de;
 mod error;
-mod ser;
+mod nbt;
+// mod ser;
 
-pub use de::{from_reader, Deserializer};
-pub use error::{Error, Result};
-pub use ser::{to_writer, Serializer};
+pub use crate::error::{Error, Result};
+pub use crate::de::{from_reader, Deserializer};
+// pub use ser::{to_writer, Serializer};
