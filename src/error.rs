@@ -3,13 +3,18 @@ use serde::{de, ser};
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
-pub struct Error {}
-
-impl Error {
-    pub fn new() -> Self {
-        Error {}
-    }
+pub enum Error {
+    InvalidParserStateError,
+    InvalidTagTypeError,
+    IoError(std::io::Error),
+    FromUtf8Error(std::string::FromUtf8Error),
 }
+
+// impl Error {
+//     pub fn new() -> Self {
+//         Error {}
+//     }
+// }
 
 impl de::Error for Error {
     fn custom<T>(_: T) -> Self
@@ -36,3 +41,16 @@ impl std::fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::IoError(e)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(e: std::string::FromUtf8Error) -> Self {
+        Error::FromUtf8Error(e)
+    }
+}
+
