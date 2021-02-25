@@ -165,7 +165,7 @@ impl<R> Parser<R> where R: std::io::Read {
             ParserState::ListValueCompound { remaining } => self.next_list_value_compound(remaining),
             ParserState::ListValueI32Array { remaining } => self.next_list_value_i32_array(remaining),
             ParserState::ListValueI64Array { remaining } => self.next_list_value_i64_array(remaining),
-            ParserState::ListEnd => todo!(),
+            ParserState::ListEnd => self.next_state_from_stack(),
         }
     }
 
