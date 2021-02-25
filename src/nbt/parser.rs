@@ -320,7 +320,59 @@ mod tests {
         // TODO: try reading beyond the end of the input
     }
 
-    // TODO: test_f32_tag
-    // TODO: test_f64_tag
+    #[test]
+    fn test_f32_tag() {
+        const EXPECTED_VALUE: f32 = 0.0;
+
+        // `"": 0F`
+        let buffer = b"\x05\x00\x00\x00\x00\x00\x00";
+        let input = Cursor::new(buffer);
+        let mut parser = Parser::new(input);
+
+        // assert_eq!(parser.state, ParserState::StartOfInput);
+        assert_eq!(parser.state, ParserState::ExpectingTag);
+
+        // read the tag's header
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagHeader { value_type: nbt::TAG_F32, name: "".to_string() });
+        assert_eq!(parser.get_string_value().unwrap(), "");
+
+        // read the tag's value
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagValueF32 { value: EXPECTED_VALUE });
+        assert_eq!(parser.get_f32_value().unwrap(), EXPECTED_VALUE);
+
+        // TODO: check to make sure that the other `get_*` functions return errors
+
+        // TODO: try reading beyond the end of the input
+    }
+
+    #[test]
+    fn test_f64_tag() {
+        const EXPECTED_VALUE: f64 = 0.0;
+
+        // `"": 0D`
+        let buffer = b"\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+        let input = Cursor::new(buffer);
+        let mut parser = Parser::new(input);
+
+        // assert_eq!(parser.state, ParserState::StartOfInput);
+        assert_eq!(parser.state, ParserState::ExpectingTag);
+
+        // read the tag's header
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagHeader { value_type: nbt::TAG_F64, name: "".to_string() });
+        assert_eq!(parser.get_string_value().unwrap(), "");
+
+        // read the tag's value
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagValueF64 { value: EXPECTED_VALUE });
+        assert_eq!(parser.get_f64_value().unwrap(), EXPECTED_VALUE);
+
+        // TODO: check to make sure that the other `get_*` functions return errors
+
+        // TODO: try reading beyond the end of the input
+    }
+
     // TODO: test_string_tag
 }
