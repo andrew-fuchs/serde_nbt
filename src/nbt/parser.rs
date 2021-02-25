@@ -56,7 +56,7 @@ impl<R> Parser<R> where R: std::io::Read {
         Parser { input, state: ParserState::ExpectingTag, stack: Vec::new() }
     }
 
-    pub fn get_i8_value(&mut self) -> Result<i8> {
+    pub fn get_i8_value(&self) -> Result<i8> {
         match self.state {
             ParserState::TagValueI8 { value } => Ok(value),
             ParserState::I8ArrayValue { remaining: _, value } => Ok(value),
@@ -65,7 +65,7 @@ impl<R> Parser<R> where R: std::io::Read {
         }
     }
 
-    pub fn get_i16_value(&mut self) -> Result<i16> {
+    pub fn get_i16_value(&self) -> Result<i16> {
         match self.state {
             ParserState::TagValueI16 { value } => Ok(value),
             ParserState::ListValueI16 { remaining: _, value } => Ok(value),
@@ -73,7 +73,7 @@ impl<R> Parser<R> where R: std::io::Read {
         }
     }
 
-    pub fn get_i32_value(&mut self) -> Result<i32> {
+    pub fn get_i32_value(&self) -> Result<i32> {
         match self.state {
             ParserState::TagValueI32 { value } => Ok(value),
             ParserState::I32ArrayValue { remaining: _, value } => Ok(value),
@@ -82,7 +82,7 @@ impl<R> Parser<R> where R: std::io::Read {
         }
     }
 
-    pub fn get_i64_value(&mut self) -> Result<i64> {
+    pub fn get_i64_value(&self) -> Result<i64> {
         match self.state {
             ParserState::TagValueI64 { value } => Ok(value),
             ParserState::I64ArrayValue { remaining: _, value } => Ok(value),
@@ -91,7 +91,7 @@ impl<R> Parser<R> where R: std::io::Read {
         }
     }
 
-    pub fn get_f32_value(&mut self) -> Result<f32> {
+    pub fn get_f32_value(&self) -> Result<f32> {
         match self.state {
             ParserState::TagValueF32 { value } => Ok(value),
             ParserState::ListValueF32 { remaining: _, value } => Ok(value),
@@ -99,7 +99,7 @@ impl<R> Parser<R> where R: std::io::Read {
         }
     }
 
-    pub fn get_f64_value(&mut self) -> Result<f64> {
+    pub fn get_f64_value(&self) -> Result<f64> {
         match self.state {
             ParserState::TagValueF64 { value } => Ok(value),
             ParserState::ListValueF64 { remaining: _, value } => Ok(value),
@@ -107,7 +107,7 @@ impl<R> Parser<R> where R: std::io::Read {
         }
     }
 
-    pub fn get_string_value(&mut self) -> Result<String> {
+    pub fn get_string_value(&self) -> Result<String> {
         match &self.state {
             ParserState::TagHeader { value_type: _, name } => Ok(name.clone()),
             ParserState::TagValueString { value } => Ok(value.clone()),
