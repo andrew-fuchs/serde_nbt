@@ -345,7 +345,6 @@ mod tests {
 
     #[test]
     fn test_i8_tag() {
-        // FIXME use something that isn't a byte-order independent palindrome
         const EXPECTED_VALUE: i8 = 0x11;
 
         // `"": 17B` (0x11)
@@ -353,7 +352,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -367,13 +366,11 @@ mod tests {
         assert_eq!(parser.get_i8_value().unwrap(), EXPECTED_VALUE);
 
         // TODO: check to make sure that the other `get_*` functions return errors
-
         // TODO: try reading beyond the end of the input
     }
 
     #[test]
     fn test_i16_tag() {
-        // FIXME use something that isn't a byte-order independent palindrome
         const EXPECTED_VALUE: i16 = 0x1122;
 
         // `"": 462S` (0x1616)
@@ -381,7 +378,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -395,13 +392,11 @@ mod tests {
         assert_eq!(parser.get_i16_value().unwrap(), EXPECTED_VALUE);
 
         // TODO: check to make sure that the other `get_*` functions return errors
-
         // TODO: try reading beyond the end of the input
     }
 
     #[test]
     fn test_i32_tag() {
-        // FIXME use something that isn't a byte-order independent palindrome
         const EXPECTED_VALUE: i32 = 0x11223344;
 
         // `"": 287454020` (0x11223344)
@@ -409,7 +404,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -423,7 +418,6 @@ mod tests {
         assert_eq!(parser.get_i32_value().unwrap(), EXPECTED_VALUE);
 
         // TODO: check to make sure that the other `get_*` functions return errors
-
         // TODO: try reading beyond the end of the input
     }
 
@@ -436,7 +430,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -450,7 +444,6 @@ mod tests {
         assert_eq!(parser.get_i64_value().unwrap(), EXPECTED_VALUE);
 
         // TODO: check to make sure that the other `get_*` functions return errors
-
         // TODO: try reading beyond the end of the input
     }
 
@@ -463,7 +456,6 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -477,7 +469,6 @@ mod tests {
         assert_eq!(parser.get_f32_value().unwrap(), EXPECTED_VALUE);
 
         // TODO: check to make sure that the other `get_*` functions return errors
-
         // TODO: try reading beyond the end of the input
     }
 
@@ -490,7 +481,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -504,7 +495,6 @@ mod tests {
         assert_eq!(parser.get_f64_value().unwrap(), EXPECTED_VALUE);
 
         // TODO: check to make sure that the other `get_*` functions return errors
-
         // TODO: try reading beyond the end of the input
     }
 
@@ -518,7 +508,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -532,7 +522,6 @@ mod tests {
         assert_eq!(parser.get_string_value().unwrap(), expected_value);
 
         // TODO: check to make sure that the other `get_*` functions return errors
-
         // TODO: try reading beyond the end of the input
     }
 
@@ -543,7 +532,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the tag's header
@@ -572,7 +561,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the outer tag's header
@@ -594,12 +583,10 @@ mod tests {
         // read the inner tag's end marker
         assert!(parser.next().is_ok());
         assert_eq!(parser.state, ParserState::TagEnd);
-        // assert_eq!(parser.is_compound_end().unwrap(), true);
 
         // read the outer tag's `TAG_END`
         assert!(parser.next().is_ok());
         assert_eq!(parser.state, ParserState::TagEnd);
-        // assert_eq!(parser.is_compound_end().unwrap(), true);
 
         // TODO: try reading beyond the end of the input
     }
@@ -615,7 +602,7 @@ mod tests {
         let input = Cursor::new(buffer);
         let mut parser = Parser::new(input);
 
-        // assert_eq!(parser.state, ParserState::StartOfInput);
+        // initial parser state
         assert_eq!(parser.state, ParserState::ExpectingTag);
 
         // read the outer tag's header
@@ -642,36 +629,19 @@ mod tests {
         // enter into the inner `TAG_COMPOUND`
         assert!(parser.next().is_ok());
 
-        // FIXME: remove
-        println!("parser.stack at middle:");
-        for x in &parser.stack {
-            println!("{:?}", x);
-        }
-
         // read the inner tag's end marker
         assert!(parser.next().is_ok());
         assert_eq!(parser.state, ParserState::TagEnd);
-        // assert_eq!(parser.is_compound_end().unwrap(), true);
 
         // read the middle tag's end marker
         assert!(parser.next().is_ok());
         assert_eq!(parser.state, ParserState::TagEnd);
-        // assert_eq!(parser.is_compound_end().unwrap(), true);
 
         // read the outer tag's `TAG_END`
         assert!(parser.next().is_ok());
         assert_eq!(parser.state, ParserState::TagEnd);
-        // assert_eq!(parser.is_compound_end().unwrap(), true);
 
         // TODO: try reading beyond the end of the input
-
-        // FIXME: remove
-        println!("parser.stack at end:");
-        for x in &parser.stack {
-            println!("{:?}", x);
-        }
-
-        // assert_eq!(parser.state, ParserState::Tag);
     }
 
     #[test]
