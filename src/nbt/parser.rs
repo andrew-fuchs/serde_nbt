@@ -11,6 +11,7 @@ struct Parser<R> {
 #[derive(Debug, PartialEq)]
 enum ParserState {
     InvalidState,
+    // states for tags
     ExpectingTag,
     TagHeader { value_type: u8, name: String },
     TagEnd,
@@ -23,6 +24,7 @@ enum ParserState {
     TagValueString { value: String },
     // marker state, indicates that the parser will enter a compound type
     Compound,
+    // states for array types
     I8Array { len: usize },
     I8ArrayValue { remaining: usize, value: i8 },
     I8ArrayEnd,
@@ -32,6 +34,21 @@ enum ParserState {
     I64Array { len: usize },
     I64ArrayValue { remaining: usize, value: i64 },
     I64ArrayEnd,
+    // states for lists and positions within lists
+    List { len: usize, elem_type: u8 },
+    ListValueI8 { remaining: usize, value: i8 },
+    ListValueI16 { remaining: usize, value: i16 },
+    ListValueI32 { remaining: usize, value: i32 },
+    ListValueI64 { remaining: usize, value: i64 },
+    ListValueF32 { remaining: usize, value: f32 },
+    ListValueF64 { remaining: usize, value: f64 },
+    ListValueI8Array { remaining: usize },
+    ListValueString { remaining: usize, value: String },
+    ListValueList { remaining: usize },
+    ListValueCompound { remaining: usize },
+    ListValueI32Array { remaining: usize },
+    ListValueI64Array { remaining: usize },
+    ListEnd,
 }
 
 impl<R> Parser<R> where R: std::io::Read {
@@ -43,6 +60,7 @@ impl<R> Parser<R> where R: std::io::Read {
         match self.state {
             ParserState::TagValueI8 { value } => Ok(value),
             ParserState::I8ArrayValue { remaining: _, value } => Ok(value),
+            ParserState::ListValueI8 { remaining: _, value } => Ok(value),
             _ => Err(Error::InvalidTagTypeError),
         }
     }
@@ -50,6 +68,7 @@ impl<R> Parser<R> where R: std::io::Read {
     pub fn get_i16_value(&mut self) -> Result<i16> {
         match self.state {
             ParserState::TagValueI16 { value } => Ok(value),
+            ParserState::ListValueI16 { remaining: _, value } => Ok(value),
             _ => Err(Error::InvalidTagTypeError),
         }
     }
@@ -58,6 +77,7 @@ impl<R> Parser<R> where R: std::io::Read {
         match self.state {
             ParserState::TagValueI32 { value } => Ok(value),
             ParserState::I32ArrayValue { remaining: _, value } => Ok(value),
+            ParserState::ListValueI32 { remaining: _, value } => Ok(value),
             _ => Err(Error::InvalidTagTypeError),
         }
     }
@@ -66,6 +86,7 @@ impl<R> Parser<R> where R: std::io::Read {
         match self.state {
             ParserState::TagValueI64 { value } => Ok(value),
             ParserState::I64ArrayValue { remaining: _, value } => Ok(value),
+            ParserState::ListValueI64 { remaining: _, value } => Ok(value),
             _ => Err(Error::InvalidTagTypeError),
         }
     }
@@ -73,6 +94,7 @@ impl<R> Parser<R> where R: std::io::Read {
     pub fn get_f32_value(&mut self) -> Result<f32> {
         match self.state {
             ParserState::TagValueF32 { value } => Ok(value),
+            ParserState::ListValueF32 { remaining: _, value } => Ok(value),
             _ => Err(Error::InvalidTagTypeError),
         }
     }
@@ -80,6 +102,7 @@ impl<R> Parser<R> where R: std::io::Read {
     pub fn get_f64_value(&mut self) -> Result<f64> {
         match self.state {
             ParserState::TagValueF64 { value } => Ok(value),
+            ParserState::ListValueF64 { remaining: _, value } => Ok(value),
             _ => Err(Error::InvalidTagTypeError),
         }
     }
@@ -88,6 +111,7 @@ impl<R> Parser<R> where R: std::io::Read {
         match &self.state {
             ParserState::TagHeader { value_type: _, name } => Ok(name.clone()),
             ParserState::TagValueString { value } => Ok(value.clone()),
+            ParserState::ListValueString { remaining: _, value } => Ok(value.clone()),
             _ => Err(Error::InvalidTagTypeError),
         }
     }
@@ -104,6 +128,7 @@ impl<R> Parser<R> where R: std::io::Read {
     pub fn next(&mut self) -> Result<()> {
         match self.state {
             ParserState::InvalidState => Err(Error::InvalidParserStateError),
+            // states for tags
             ParserState::ExpectingTag => self.next_tag_header(),
             ParserState::TagHeader { value_type, name: _ } => self.next_tag_value(value_type),
             ParserState::TagEnd => self.next_state_from_stack(),
@@ -114,7 +139,9 @@ impl<R> Parser<R> where R: std::io::Read {
             ParserState::TagValueF32 { value: _ } => self.next_tag_header(),
             ParserState::TagValueF64 { value: _ } => self.next_tag_header(),
             ParserState::TagValueString { value: _ } => self.next_tag_header(),
+            // states for compound types
             ParserState::Compound => self.next_compound(),
+            // states for array types
             ParserState::I8Array { len } => self.next_i8_array_value(len),
             ParserState::I8ArrayValue { remaining, value: _ } => self.next_i8_array_value(remaining),
             ParserState::I8ArrayEnd => self.next_state_from_stack(),
@@ -124,6 +151,21 @@ impl<R> Parser<R> where R: std::io::Read {
             ParserState::I64Array { len } => self.next_i64_array_value(len),
             ParserState::I64ArrayValue { remaining, value: _ } => self.next_i64_array_value(remaining),
             ParserState::I64ArrayEnd => self.next_state_from_stack(),
+            // states for lists and positions within lists
+            ParserState::List { len, elem_type } => self.next_list(len, elem_type),
+            ParserState::ListValueI8 { remaining, value: _ } => self.next_list_value_i8(remaining),
+            ParserState::ListValueI16 { remaining, value: _ } => self.next_list_value_i16(remaining),
+            ParserState::ListValueI32 { remaining, value: _ } => self.next_list_value_i32(remaining),
+            ParserState::ListValueI64 { remaining, value: _ } => self.next_list_value_i64(remaining),
+            ParserState::ListValueF32 { remaining, value: _ } => self.next_list_value_f32(remaining),
+            ParserState::ListValueF64 { remaining, value: _ } => self.next_list_value_f64(remaining),
+            ParserState::ListValueI8Array { remaining } => self.next_list_value_i8_array(remaining),
+            ParserState::ListValueString { remaining, value: _ } => self.next_list_value_string(remaining),
+            ParserState::ListValueList { remaining } => self.next_list_value_list(remaining),
+            ParserState::ListValueCompound { remaining } => self.next_list_value_compound(remaining),
+            ParserState::ListValueI32Array { remaining } => self.next_list_value_i32_array(remaining),
+            ParserState::ListValueI64Array { remaining } => self.next_list_value_i64_array(remaining),
+            ParserState::ListEnd => todo!(),
         }
     }
 
@@ -204,7 +246,10 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value_list(&mut self) -> Result<()> {
-        todo!()
+        // return to parsing tags after parsing the list
+        self.stack.push(ParserState::ExpectingTag);
+        // parse the list value
+        self.next_value_list()
     }
 
     fn next_tag_value_compound(&mut self) -> Result<()> {
@@ -216,33 +261,40 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value_i8_array(&mut self) -> Result<()> {
-        let len = self.read_i32_list_len()?;
         // parser should expect more tags after this array ends
         self.stack.push(ParserState::ExpectingTag);
-        self.state = ParserState::I8Array { len };
-        Ok(())
+
+        // start parsing the array
+        self.next_value_i8_array()
     }
 
     fn next_tag_value_i32_array(&mut self) -> Result<()> {
-        let len = self.read_i32_list_len()?;
         // parser should expect more tags after this array ends
         self.stack.push(ParserState::ExpectingTag);
-        self.state = ParserState::I32Array { len };
-        Ok(())
+
+        // start parsing the array
+        self.next_value_i32_array()
     }
 
     fn next_tag_value_i64_array(&mut self) -> Result<()> {
-        let len = self.read_i32_list_len()?;
         // parser should expect more tags after this array ends
         self.stack.push(ParserState::ExpectingTag);
-        self.state = ParserState::I64Array { len };
-        Ok(())
+
+        // start parsing the array
+        self.next_value_i64_array()
     }
 
     fn next_compound(&mut self) -> Result<()> {
         // a compound is a bunch of tags, followed by a `TAG_END` tag
         // read the header of the first tag
         self.next_tag_header()
+    }
+
+    /// helper function, read an TAG_I8_ARRAY as another type's value
+    fn next_value_i8_array(&mut self) -> Result<()> {
+        let len = self.read_i32_list_len()?;
+        self.state = ParserState::I8Array { len };
+        Ok(())
     }
 
     fn next_i8_array_value(&mut self, remaining: usize) -> Result<()> {
@@ -254,6 +306,13 @@ impl<R> Parser<R> where R: std::io::Read {
         let remaining = remaining - 1;
         let value = self.input.read_i8()?;
         self.state = ParserState::I8ArrayValue { remaining, value };
+        Ok(())
+    }
+
+    /// helper function to read a TAG_I32_ARRAY as another type's value
+    fn next_value_i32_array(&mut self) -> Result<()> {
+        let len = self.read_i32_list_len()?;
+        self.state = ParserState::I32Array { len };
         Ok(())
     }
 
@@ -269,6 +328,13 @@ impl<R> Parser<R> where R: std::io::Read {
         Ok(())
     }
 
+    /// helper function to read a TAG_I64_ARRAY as another type's value
+    fn next_value_i64_array(&mut self) -> Result<()> {
+        let len = self.read_i32_list_len()?;
+        self.state = ParserState::I64Array { len };
+        Ok(())
+    }
+
     fn next_i64_array_value(&mut self, remaining: usize) -> Result<()> {
         if remaining <= 0 {
             self.state = ParserState::I64ArrayEnd;
@@ -281,6 +347,199 @@ impl<R> Parser<R> where R: std::io::Read {
         Ok(())
     }
 
+    /// helper function to parse a list as part of another type's value
+    fn next_value_list(&mut self) -> Result<()> {
+        let elem_type = self.input.read_u8()?;
+        let len = self.read_i32_list_len()?;
+        self.state = ParserState::List { len, elem_type };
+        Ok(())
+    }
+
+    fn next_list(&mut self, len: usize, elem_type: u8) -> Result<()> {
+        if len <= 0 {
+            // ignore `elem_type` to avoid issues:
+            // https://minecraft.gamepedia.com/NBT_format#Usage
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        match elem_type {
+            nbt::TAG_I8 => self.next_list_value_i8(len),
+            nbt::TAG_I16 => self.next_list_value_i16(len),
+            nbt::TAG_I32 => self.next_list_value_i32(len),
+            nbt::TAG_I64 => self.next_list_value_i64(len),
+            nbt::TAG_F32 => self.next_list_value_f32(len),
+            nbt::TAG_F64 => self.next_list_value_f64(len),
+            nbt::TAG_I8_ARRAY => self.next_list_value_i8_array(len),
+            nbt::TAG_STRING => self.next_list_value_string(len),
+            nbt::TAG_LIST => self.next_list_value_list(len),
+            nbt::TAG_COMPOUND => self.next_list_value_compound(len),
+            nbt::TAG_I32_ARRAY => self.next_list_value_i32_array(len),
+            nbt::TAG_I64_ARRAY => self.next_list_value_i64_array(len),
+            _ => {
+                self.state = ParserState::InvalidState;
+                // TODO: more descriptive errors for malformed input
+                Err(Error::InvalidParserStateError)
+            },
+        }
+    }
+
+    fn next_list_value_i8(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        let remaining = remaining - 1;
+        let value = self.input.read_i8()?;
+        self.state = ParserState::ListValueI8 { remaining, value };
+        Ok(())
+    }
+
+    fn next_list_value_i16(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        let remaining = remaining - 1;
+        let value = self.input.read_i16::<BigEndian>()?;
+        self.state = ParserState::ListValueI16 { remaining, value };
+        Ok(())
+    }
+
+    fn next_list_value_i32(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        let remaining = remaining - 1;
+        let value = self.input.read_i32::<BigEndian>()?;
+        self.state = ParserState::ListValueI32 { remaining, value };
+        Ok(())
+    }
+
+    fn next_list_value_i64(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        let remaining = remaining - 1;
+        let value = self.input.read_i64::<BigEndian>()?;
+        self.state = ParserState::ListValueI64 { remaining, value };
+        Ok(())
+    }
+
+    fn next_list_value_f32(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        let remaining = remaining - 1;
+        let value = self.input.read_f32::<BigEndian>()?;
+        self.state = ParserState::ListValueF32 { remaining, value };
+        Ok(())
+    }
+
+    fn next_list_value_f64(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        let remaining = remaining - 1;
+        let value = self.input.read_f64::<BigEndian>()?;
+        self.state = ParserState::ListValueF64 { remaining, value };
+        Ok(())
+    }
+
+    fn next_list_value_i8_array(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        // return to parsing this list after parsing the TAG_I8_ARRAY
+        let remaining = remaining - 1;
+        self.state = ParserState::ListValueI8Array { remaining };
+
+        // parse the TAG_I8_ARRAY
+        self.next_value_i8_array()
+    }
+
+    fn next_list_value_string(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        let remaining = remaining - 1;
+        let value = self.read_nbt_string()?;
+        self.state = ParserState::ListValueString { remaining, value };
+        Ok(())
+    }
+
+    fn next_list_value_list(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        // return to current list after parsing the contained list
+        let remaining = remaining - 1;
+        self.stack.push(ParserState::ListValueList { remaining });
+
+        // parse the list (as the current list's value)
+        self.next_value_list()
+    }
+
+    fn next_list_value_compound(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        // return to parsing this list after parsing the compound value
+        let remaining = remaining - 1;
+        self.stack.push(ParserState::ListValueCompound { remaining });
+
+        // parse the compound next
+        self.state = ParserState::Compound;
+        Ok(())
+    }
+
+    fn next_list_value_i32_array(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        // return to parsing this list after parsing the TAG_I32_ARRAY
+        let remaining = remaining - 1;
+        self.stack.push(ParserState::ListValueI32Array { remaining });
+
+        // parse the TAG_I32_ARRAY
+        self.next_value_i32_array()
+    }
+
+    fn next_list_value_i64_array(&mut self, remaining: usize) -> Result<()> {
+        if remaining <= 0 {
+            self.state = ParserState::ListEnd;
+            return Ok(());
+        }
+
+        // return to parsing this list after parsing the TAG_I64_ARRAY
+        let remaining = remaining - 1;
+        self.stack.push(ParserState::ListValueI64Array { remaining });
+
+        // parse the TAG_I64_ARRAY
+        self.next_value_i64_array()
+    }
+
+    /// restore parser's state from the stack and continue parsing
     fn next_state_from_stack(&mut self) -> Result<()> {
         match self.stack.pop() {
             Some(next_state) => {
@@ -717,5 +976,51 @@ mod tests {
         assert_eq!(parser.state, ParserState::I64ArrayEnd);
 
         // TODO: try reading beyond the end of the input
+    }
+
+    #[test]
+    fn test_empty_end_list() {
+        // `"": []` (elements are of type `TAG_END`)
+        let buffer = b"\x09\x00\x00\x00\x00\x00\x00\x00";
+        let input = Cursor::new(buffer);
+        let mut parser = Parser::new(input);
+
+        // initial parser state
+        assert_eq!(parser.state, ParserState::ExpectingTag);
+
+        // tag header
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagHeader { value_type: nbt::TAG_LIST, name: "".to_string() });
+
+        // list header
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::List { len: 0, elem_type: nbt::TAG_END });
+
+        // list end
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::ListEnd);
+    }
+
+    #[test]
+    fn test_empty_i8_list() {
+        // `"": []` (elements are of type `TAG_I8`)
+        let buffer = b"\x09\x00\x00\x01\x00\x00\x00\x00";
+        let input = Cursor::new(buffer);
+        let mut parser = Parser::new(input);
+
+        // initial parser state
+        assert_eq!(parser.state, ParserState::ExpectingTag);
+
+        // tag header
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagHeader { value_type: nbt::TAG_LIST, name: "".to_string() });
+
+        // list header
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::List { len: 0, elem_type: nbt::TAG_I8 });
+
+        // list end
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::ListEnd);
     }
 }
