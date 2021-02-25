@@ -374,5 +374,31 @@ mod tests {
         // TODO: try reading beyond the end of the input
     }
 
-    // TODO: test_string_tag
+    #[test]
+    fn test_string_tag() {
+        let tag_name = "tag name".to_string();
+        let expected_value = "Hello, World!".to_string();
+
+        // `"tag name": "Hello, World!"`
+        let buffer = b"\x08\x00\x08tag name\x00\x0dHello, World!";
+        let input = Cursor::new(buffer);
+        let mut parser = Parser::new(input);
+
+        // assert_eq!(parser.state, ParserState::StartOfInput);
+        assert_eq!(parser.state, ParserState::ExpectingTag);
+
+        // read the tag's header
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagHeader { value_type: nbt::TAG_STRING, name: tag_name.clone() });
+        assert_eq!(parser.get_string_value().unwrap(), tag_name);
+
+        // read the tag's value
+        assert!(parser.next().is_ok());
+        assert_eq!(parser.state, ParserState::TagValueString { value: expected_value.clone() });
+        assert_eq!(parser.get_string_value().unwrap(), expected_value);
+
+        // TODO: check to make sure that the other `get_*` functions return errors
+
+        // TODO: try reading beyond the end of the input
+    }
 }
