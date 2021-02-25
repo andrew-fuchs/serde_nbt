@@ -3,7 +3,8 @@
 
 mod de;
 mod error;
-mod nbt;
+// FIXME: this module should be made private
+pub mod nbt;
 // mod ser;
 
 pub use crate::error::{Error, Result};

@@ -2,10 +2,26 @@ use byteorder::{BigEndian, ReadBytesExt};
 use crate::error::{Result, Error};
 use crate::nbt;
 
-struct Parser<R> {
+pub struct Parser<R> {
     input: R,
     state: ParserState,
     stack: Vec<ParserState>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ValueType {
+    Invalid,
+    I8,
+    I16,
+    I32,
+    I64,
+    F32,
+    F64,
+    String,
+    SeqBegin,
+    SeqEnd,
+    MapBegin,
+    MapEnd,
 }
 
 #[derive(Debug, PartialEq)]
@@ -54,6 +70,46 @@ enum ParserState {
 impl<R> Parser<R> where R: std::io::Read {
     pub fn new(input: R) -> Self {
         Parser { input, state: ParserState::ExpectingTag, stack: Vec::new() }
+    }
+
+    pub fn get_value_type(&self) -> ValueType {
+        match self.state {
+            ParserState::InvalidState => ValueType::Invalid,
+            ParserState::ExpectingTag => ValueType::Invalid,
+            ParserState::TagHeader { value_type: _, name: _ } => ValueType::String,
+            ParserState::TagEnd => ValueType::MapEnd,
+            ParserState::TagValueI8 { value: _ } => ValueType::I8,
+            ParserState::TagValueI16 { value: _ } => ValueType::I16,
+            ParserState::TagValueI32 { value: _ } => ValueType::I32,
+            ParserState::TagValueI64 { value: _ } => ValueType::I64,
+            ParserState::TagValueF32 { value: _ } => ValueType::F32,
+            ParserState::TagValueF64 { value: _ } => ValueType::F64,
+            ParserState::TagValueString { value: _ } => ValueType::String,
+            ParserState::Compound => ValueType::MapBegin,
+            ParserState::I8Array { len: _ } => ValueType::SeqEnd,
+            ParserState::I8ArrayValue { remaining: _, value: _ } => ValueType::I8,
+            ParserState::I8ArrayEnd => ValueType::SeqEnd,
+            ParserState::I32Array { len: _ } => ValueType::SeqBegin,
+            ParserState::I32ArrayValue { remaining: _, value: _ } => ValueType::I32,
+            ParserState::I32ArrayEnd => ValueType::SeqEnd,
+            ParserState::I64Array { len: _ } => ValueType::SeqBegin,
+            ParserState::I64ArrayValue { remaining: _, value: _ } => ValueType::I64,
+            ParserState::I64ArrayEnd => ValueType::SeqEnd,
+            ParserState::List { len: _, elem_type: _ } => ValueType::SeqBegin,
+            ParserState::ListValueI8 { remaining: _, value: _ } => ValueType::I8,
+            ParserState::ListValueI16 { remaining: _, value: _ } => ValueType::I16,
+            ParserState::ListValueI32 { remaining: _, value: _ } => ValueType::I32,
+            ParserState::ListValueI64 { remaining: _, value: _ } => ValueType::I64,
+            ParserState::ListValueF32 { remaining: _, value: _ } => ValueType::F32,
+            ParserState::ListValueF64 { remaining: _, value: _ } => ValueType::F64,
+            ParserState::ListValueI8Array { remaining: _ } => ValueType::Invalid,
+            ParserState::ListValueString { remaining: _, value: _ } => ValueType::String,
+            ParserState::ListValueList { remaining: _ } => ValueType::Invalid,
+            ParserState::ListValueCompound { remaining: _ } => ValueType::Invalid,
+            ParserState::ListValueI32Array { remaining: _ } => ValueType::Invalid,
+            ParserState::ListValueI64Array { remaining: _ } => ValueType::Invalid,
+            ParserState::ListEnd => ValueType::SeqEnd,
+        }
     }
 
     pub fn get_i8_value(&self) -> Result<i8> {
