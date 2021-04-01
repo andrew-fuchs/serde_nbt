@@ -1,4 +1,5 @@
 use byteorder::{BigEndian, ReadBytesExt};
+use log::trace;
 use crate::error::{Result, Error};
 use crate::nbt;
 
@@ -69,11 +70,21 @@ enum ParserState {
 
 impl<R> Parser<R> where R: std::io::Read {
     pub fn new(input: R) -> Self {
-        Parser { input, state: ParserState::ExpectingTag, stack: Vec::new() }
+        #[cfg(debug_assertions)]
+        trace!("Parser::new");
+
+        Parser {
+            input,
+            state: ParserState::ExpectingTag,
+            stack: Vec::new(),
+        }
     }
 
     pub fn get_value_type(&self) -> ValueType {
-        match self.state {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_value_type");
+
+        let value_type = match self.state {
             ParserState::InvalidState => ValueType::Invalid,
             ParserState::ExpectingTag => ValueType::Invalid,
             ParserState::TagHeader { value_type: _, name: _ } => ValueType::String,
@@ -109,10 +120,18 @@ impl<R> Parser<R> where R: std::io::Read {
             ParserState::ListValueI32Array { remaining: _ } => ValueType::Invalid,
             ParserState::ListValueI64Array { remaining: _ } => ValueType::Invalid,
             ParserState::ListEnd => ValueType::SeqEnd,
-        }
+        };
+
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_value_type -> {:?}", value_type);
+
+        value_type
     }
 
     pub fn get_i8_value(&self) -> Result<i8> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_i8_value");
+
         match self.state {
             ParserState::TagValueI8 { value } => Ok(value),
             ParserState::I8ArrayValue { remaining: _, value } => Ok(value),
@@ -122,6 +141,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     pub fn get_i16_value(&self) -> Result<i16> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_i16_value");
+
         match self.state {
             ParserState::TagValueI16 { value } => Ok(value),
             ParserState::ListValueI16 { remaining: _, value } => Ok(value),
@@ -130,6 +152,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     pub fn get_i32_value(&self) -> Result<i32> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_i32_value");
+
         match self.state {
             ParserState::TagValueI32 { value } => Ok(value),
             ParserState::I32ArrayValue { remaining: _, value } => Ok(value),
@@ -139,6 +164,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     pub fn get_i64_value(&self) -> Result<i64> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_i64_value");
+
         match self.state {
             ParserState::TagValueI64 { value } => Ok(value),
             ParserState::I64ArrayValue { remaining: _, value } => Ok(value),
@@ -148,6 +176,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     pub fn get_f32_value(&self) -> Result<f32> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_f32_value");
+
         match self.state {
             ParserState::TagValueF32 { value } => Ok(value),
             ParserState::ListValueF32 { remaining: _, value } => Ok(value),
@@ -156,6 +187,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     pub fn get_f64_value(&self) -> Result<f64> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_f64_value");
+
         match self.state {
             ParserState::TagValueF64 { value } => Ok(value),
             ParserState::ListValueF64 { remaining: _, value } => Ok(value),
@@ -164,6 +198,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     pub fn get_string_value(&self) -> Result<String> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::get_string_value");
+
         match &self.state {
             ParserState::TagHeader { value_type: _, name } => Ok(name.clone()),
             ParserState::TagValueString { value } => Ok(value.clone()),
@@ -172,16 +209,11 @@ impl<R> Parser<R> where R: std::io::Read {
         }
     }
 
-    //pub fn is_compound_value(&mut self) -> Result<bool> {
-    //    match self.state {
-    //        ParserState::Compound => Ok(true),
-    //        ParserState::InvalidState => Err(Error::InvalidParserStateError),
-    //        _ => Ok(false),
-    //    }
-    //}
-
     /// reads the next value from the parser's input
     pub fn next(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next");
+
         match self.state {
             ParserState::InvalidState => Err(Error::InvalidParserStateError),
             // states for tags
@@ -226,7 +258,18 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_header(&mut self) -> Result<()> {
-        let value_type = self.input.read_u8()?;
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_header");
+
+        let value_type = match self.input.read_u8() {
+            Ok(value) => value,
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                return Err(Error::Eof);
+            },
+            Err(e) => {
+                return Err(From::from(e));
+            },
+        };
 
         // `TAG_END` is a special case, indicates the end of a compound type
         if value_type == nbt::TAG_END {
@@ -240,6 +283,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value(&mut self, value_type: u8) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value");
+
         match value_type {
             // FIXME: `TAG_END` may show up in unexpected places, figure out how to properly handle this case
             nbt::TAG_END => Err(Error::InvalidParserStateError),
@@ -260,48 +306,72 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value_i8(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_i8");
+
         let value = self.input.read_i8()?;
         self.state = ParserState::TagValueI8 { value };
         Ok(())
     }
 
     fn next_tag_value_i16(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_i16");
+
         let value = self.input.read_i16::<BigEndian>()?;
         self.state = ParserState::TagValueI16 { value };
         Ok(())
     }
 
     fn next_tag_value_i32(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_i32");
+
         let value = self.input.read_i32::<BigEndian>()?;
         self.state = ParserState::TagValueI32 { value };
         Ok(())
     }
 
     fn next_tag_value_i64(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_i64");
+
         let value = self.input.read_i64::<BigEndian>()?;
         self.state = ParserState::TagValueI64 { value };
         Ok(())
     }
 
     fn next_tag_value_f32(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_f32");
+
         let value = self.input.read_f32::<BigEndian>()?;
         self.state = ParserState::TagValueF32 { value };
         Ok(())
     }
 
     fn next_tag_value_f64(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_f64");
+
         let value = self.input.read_f64::<BigEndian>()?;
         self.state = ParserState::TagValueF64 { value };
         Ok(())
     }
 
     fn next_tag_value_string(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_string");
+
         let value = self.read_nbt_string()?;
         self.state = ParserState::TagValueString { value };
         Ok(())
     }
 
     fn next_tag_value_list(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_list");
+
         // return to parsing tags after parsing the list
         self.stack.push(ParserState::ExpectingTag);
         // parse the list value
@@ -309,6 +379,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value_compound(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_compound");
+
         // the parser should expect another tag after this compound type
         self.stack.push(ParserState::ExpectingTag);
         // "marker" to show that the parser will read tags inside a compound value
@@ -317,6 +390,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value_i8_array(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_i8_array");
+
         // parser should expect more tags after this array ends
         self.stack.push(ParserState::ExpectingTag);
 
@@ -325,6 +401,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value_i32_array(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_i32_array");
+
         // parser should expect more tags after this array ends
         self.stack.push(ParserState::ExpectingTag);
 
@@ -333,6 +412,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_tag_value_i64_array(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_i64_array");
+
         // parser should expect more tags after this array ends
         self.stack.push(ParserState::ExpectingTag);
 
@@ -341,6 +423,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_compound(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_tag_value_compound");
+
         // a compound is a bunch of tags, followed by a `TAG_END` tag
         // read the header of the first tag
         self.next_tag_header()
@@ -348,12 +433,18 @@ impl<R> Parser<R> where R: std::io::Read {
 
     /// helper function, read an TAG_I8_ARRAY as another type's value
     fn next_value_i8_array(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_value_i8_array");
+
         let len = self.read_i32_list_len()?;
         self.state = ParserState::I8Array { len };
         Ok(())
     }
 
     fn next_i8_array_value(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_i8_array_value");
+
         if remaining <= 0 {
             self.state = ParserState::I8ArrayEnd;
             return Ok(());
@@ -367,12 +458,18 @@ impl<R> Parser<R> where R: std::io::Read {
 
     /// helper function to read a TAG_I32_ARRAY as another type's value
     fn next_value_i32_array(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_value_i32_array");
+
         let len = self.read_i32_list_len()?;
         self.state = ParserState::I32Array { len };
         Ok(())
     }
 
     fn next_i32_array_value(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_i32_array_value");
+
         if remaining <= 0 {
             self.state = ParserState::I32ArrayEnd;
             return Ok(());
@@ -386,12 +483,18 @@ impl<R> Parser<R> where R: std::io::Read {
 
     /// helper function to read a TAG_I64_ARRAY as another type's value
     fn next_value_i64_array(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_value_i64_array");
+
         let len = self.read_i32_list_len()?;
         self.state = ParserState::I64Array { len };
         Ok(())
     }
 
     fn next_i64_array_value(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_i64_array_value");
+
         if remaining <= 0 {
             self.state = ParserState::I64ArrayEnd;
             return Ok(());
@@ -405,6 +508,9 @@ impl<R> Parser<R> where R: std::io::Read {
 
     /// helper function to parse a list as part of another type's value
     fn next_value_list(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_value_list");
+
         let elem_type = self.input.read_u8()?;
         let len = self.read_i32_list_len()?;
         self.state = ParserState::List { len, elem_type };
@@ -412,6 +518,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list(&mut self, len: usize, elem_type: u8) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list");
+
         if len <= 0 {
             // ignore `elem_type` to avoid issues:
             // https://minecraft.gamepedia.com/NBT_format#Usage
@@ -441,6 +550,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_i8(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_i8");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -453,6 +565,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_i16(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_i16");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -465,6 +580,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_i32(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_i32");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -477,6 +595,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_i64(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_i64");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -489,6 +610,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_f32(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_f32");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -501,6 +625,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_f64(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_f64");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -513,6 +640,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_i8_array(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_i8_array");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -527,6 +657,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_string(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_string");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -539,6 +672,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_list(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_list");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -553,6 +689,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_compound(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_compound");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -568,6 +707,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_i32_array(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_i32_array");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -582,6 +724,9 @@ impl<R> Parser<R> where R: std::io::Read {
     }
 
     fn next_list_value_i64_array(&mut self, remaining: usize) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_list_value_i64_array");
+
         if remaining <= 0 {
             self.state = ParserState::ListEnd;
             return Ok(());
@@ -597,6 +742,9 @@ impl<R> Parser<R> where R: std::io::Read {
 
     /// restore parser's state from the stack and continue parsing
     fn next_state_from_stack(&mut self) -> Result<()> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::next_state_from_stack");
+
         match self.stack.pop() {
             Some(next_state) => {
                 // restore previous state from the stack
@@ -615,6 +763,9 @@ impl<R> Parser<R> where R: std::io::Read {
 
     /// helper function to read NBT strings
     fn read_nbt_string(&mut self) -> Result<String> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::read_nbt_string");
+
         // u16 prefixed length
         let len = self.input.read_u16::<BigEndian>()?;
 
@@ -623,11 +774,17 @@ impl<R> Parser<R> where R: std::io::Read {
         self.input.read_exact(value.as_mut_slice())?;
         let value = String::from_utf8(value)?;
 
+        #[cfg(debug_assertions)]
+        trace!("Parser::read_nbt_string() -> {:?}", value);
+
         Ok(value)
     }
     
     /// helper function to read NBT i32 length fields
     fn read_i32_list_len(&mut self) -> Result<usize> {
+        #[cfg(debug_assertions)]
+        trace!("Parser::read_i32_list_len");
+
         let len = self.input.read_i32::<BigEndian>()?;
         if len < 0 {
             self.state = ParserState::InvalidState;
@@ -638,6 +795,9 @@ impl<R> Parser<R> where R: std::io::Read {
             // TODO: create more descriptive errors for malformed input
             return Err(Error::InvalidParserStateError);
         }
+
+        #[cfg(debug_assertions)]
+        trace!("Parser::read_i32_list_len() -> {:?}", len);
 
         Ok(len as usize)
     }
