@@ -9,6 +9,7 @@ pub enum Error {
     InvalidTagTypeError,
     IoError(std::io::Error),
     FromUtf8Error(std::string::FromUtf8Error),
+    Message(String),
 }
 
 // impl Error {
@@ -18,20 +19,20 @@ pub enum Error {
 // }
 
 impl de::Error for Error {
-    fn custom<T>(_: T) -> Self
+    fn custom<T>(msg: T) -> Self
     where
         T: std::fmt::Display,
     {
-        todo!()
+        Error::Message(msg.to_string())
     }
 }
 
 impl ser::Error for Error {
-    fn custom<T>(_: T) -> Self
+    fn custom<T>(msg: T) -> Self
     where
         T: std::fmt::Display,
     {
-        todo!()
+        Error::Message(msg.to_string())
     }
 }
 
